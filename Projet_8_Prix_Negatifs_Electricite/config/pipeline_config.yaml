@@ -1,0 +1,60 @@
+# Configuration du Pipeline d'Ingestion - Projet 8
+# Prix Négatifs de l'Électricité Renouvelable
+
+# Sources de données
+data_sources:
+  opsd_timeseries:
+    url: "https://data.open-power-system-data.org/time_series/2020-10-06/time_series_60min_singleindex.csv"
+    destination: "data/raw/opsd_timeseries/"
+    filename: "time_series_60min_singleindex.csv"
+    
+  opsd_weather:
+    url_base: "https://data.open-power-system-data.org/weather_data/"
+    destination: "data/raw/opsd_weather/"
+    # Note: L'URL exacte sera déterminée après exploration du site
+
+  entsoe:
+    platform_url: "https://transparency.entsoe.eu/"
+    destination: "data/raw/entsoe/"
+    requires_registration: true
+    # Les données ENTSO-E seront téléchargées via API après inscription
+
+# Pays prioritaires pour l'analyse
+focus_countries:
+  - DE  # Allemagne - le plus de prix négatifs
+  - DK  # Danemark - plus forte pénétration éolienne
+  - FR  # France - dominé par le nucléaire (contraste intéressant)
+
+# Découpage temporel pour modélisation
+temporal_split:
+  train_start: "2015-01-01"
+  train_end: "2018-12-31"
+  validation_start: "2019-01-01"
+  validation_end: "2019-12-31"
+  test_start: "2020-01-01"
+  test_end: "2020-06-30"
+
+# Stratégies de gestion des valeurs manquantes
+missing_values_strategy:
+  timeseries: "forward_fill"  # Pour données temporelles (charge, génération)
+  weather: "interpolation"     # Pour données météo
+  price: "keep_nan"           # Garder les NaN pour prix (peut indiquer absence de marché)
+  threshold_drop: 0.50         # Supprimer colonnes avec >50% valeurs manquantes
+
+# Paramètres de qualité des données
+data_quality:
+  price_outlier_threshold: -1000  # Prix en dessous sont suspects (EUR/MWh)
+  generation_negative_check: true  # Vérifier générations négatives
+  timestamp_gap_tolerance: 2       # Heures - tolérance pour gaps temporels
+
+# Paramètres de nettoyage
+cleaning:
+  remove_duplicates: true
+  standardize_column_names: true
+  convert_timezone: "UTC"
+
+# Logging
+logging:
+  level: "INFO"
+  file: "outputs/pipeline.log"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
