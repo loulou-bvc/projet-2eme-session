@@ -1,6 +1,8 @@
-# ⚡ Projet 8 : Prévision des Prix Négatifs de l'Électricité Renouvelable en Europe
+# 🔋 Projet 8 : Prix Négatifs de l'Électricité Renouvelable en Europe
 
-**Étudiant 1 - Responsable Données & Ingestion (Data Engineer / Data Manager)**
+**Équipe:** Projet Data Science - Session 2  
+**Période:** Hiver 2026 (14 semaines)  
+**Responsable Données:** Étudiant 1 - Rôle 1**
 
 ## 📖 Concept du Projet
 

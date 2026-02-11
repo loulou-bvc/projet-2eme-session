@@ -2,12 +2,12 @@
 """
 Script 1: Téléchargement des Données OPSD
 ==========================================
-Télécharge les données Open Power System Data (Time Series) pour l'analyse
-des prix négatifs de l'électricité renouvelable en Europe.
+Télécharge automatiquement le dataset OPSD Time Series depuis le portail
+Open Power System Data.
 
-Auteur: Étudiant 1 - Data Engineer
-Date: Février 2026
+Auteur: Étudiant 1 - Responsable Données & Ingestion
 Projet: Projet 8 - Prix Négatifs Électricité Renouvelable
+Date: Février 2026
 """
 
 import os
