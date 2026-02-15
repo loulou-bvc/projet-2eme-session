@@ -1,0 +1,183 @@
+{
+  "overview": {
+    "rows": 50401,
+    "columns": 300,
+    "period_start": "2014-12-31 23:00:00+00:00",
+    "period_end": "2020-09-30 23:00:00+00:00",
+    "duration_days": 2100,
+    "memory_mb": 118.48
+  },
+  "missing_values": {
+    "global": {
+      "total_cells": 15120300,
+      "missing_cells": 1333095,
+      "missing_percentage": 8.82
+    },
+    "column_categories": {
+      "complete": 2,
+      "partial": 279,
+      "mostly_missing": 19,
+      "empty": 0
+    },
+    "top_missing_columns": {
+      "HR_solar_generation_actual": {
+        "count": 50391,
+        "percentage": 99.98
+      },
+      "HR_wind_onshore_generation_actual": {
+        "count": 50379,
+        "percentage": 99.96
+      },
+      "PT_wind_offshore_generation_actual": {
+        "count": 47509,
+        "percentage": 94.26
+      },
+      "PT_wind_generation_actual": {
+        "count": 47509,
+        "percentage": 94.26
+      },
+      "PL_solar_generation_actual": {
+        "count": 46237,
+        "percentage": 91.74
+      },
+      "HU_solar_generation_actual": {
+        "count": 41436,
+        "percentage": 82.21
+      },
+      "SK_wind_onshore_generation_actual": {
+        "count": 40722,
+        "percentage": 80.8
+      },
+      "NO_5_wind_onshore_generation_actual": {
+        "count": 40132,
+        "percentage": 79.63
+      },
+      "NO_1_wind_onshore_generation_actual": {
+        "count": 35815,
+        "percentage": 71.06
+      },
+      "DE_LU_load_forecast_entsoe_transparency": {
+        "count": 33745,
+        "percentage": 66.95
+      },
+      "IE_sem_price_day_ahead": {
+        "count": 32886,
+        "percentage": 65.25
+      },
+      "DE_LU_load_actual_entsoe_transparency": {
+        "count": 32877,
+        "percentage": 65.23
+      },
+      "DE_LU_solar_generation_actual": {
+        "count": 32862,
+        "percentage": 65.2
+      },
+      "DE_LU_price_day_ahead": {
+        "count": 32861,
+        "percentage": 65.2
+      },
+      "DE_LU_wind_onshore_generation_actual": {
+        "count": 32855,
+        "percentage": 65.19
+      },
+      "DE_LU_wind_offshore_generation_actual": {
+        "count": 32855,
+        "percentage": 65.19
+      },
+      "DE_LU_wind_generation_actual": {
+        "count": 32855,
+        "percentage": 65.19
+      },
+      "ME_wind_onshore_generation_actual": {
+        "count": 29941,
+        "percentage": 59.41
+      },
+      "CY_load_forecast_entsoe_transparency": {
+        "count": 29048,
+        "percentage": 57.63
+      },
+      "UA_load_forecast_entsoe_transparency": {
+        "count": 24988,
+        "percentage": 49.58
+      }
+    }
+  },
+  "temporal_analysis": {
+    "expected_frequency": "1 hour",
+    "gaps_count": 0,
+    "duplicate_timestamps": 0
+  },
+  "price_analysis": {
+    "DE": {
+      "DE_LU_price_day_ahead": {
+        "count": 17540,
+        "missing": 32861,
+        "missing_pct": 65.2,
+        "min": -90.01,
+        "max": 200.04,
+        "mean": 35.81,
+        "median": 36.15,
+        "std": 18.14,
+        "negative_count": 484,
+        "negative_pct": 2.76,
+        "most_negative": -90.01,
+        "outliers_high_count": 74,
+        "outliers_low_count": 131
+      }
+    },
+    "DK": {
+      "DK_1_price_day_ahead": {
+        "count": 50386,
+        "missing": 15,
+        "missing_pct": 0.03,
+        "min": -58.8,
+        "max": 200.04,
+        "mean": 31.33,
+        "median": 30.29,
+        "std": 14.85,
+        "negative_count": 539,
+        "negative_pct": 1.07,
+        "most_negative": -58.8,
+        "outliers_high_count": 298,
+        "outliers_low_count": 116
+      },
+      "DK_2_price_day_ahead": {
+        "count": 50386,
+        "missing": 15,
+        "missing_pct": 0.03,
+        "min": -53.62,
+        "max": 255.02,
+        "mean": 33.36,
+        "median": 31.66,
+        "std": 15.72,
+        "negative_count": 354,
+        "negative_pct": 0.7,
+        "most_negative": -53.62,
+        "outliers_high_count": 367,
+        "outliers_low_count": 65
+      }
+    },
+    "FR": {
+      "IT_NORD_FR_price_day_ahead": {
+        "count": 25576,
+        "missing": 24825,
+        "missing_pct": 49.25,
+        "min": 5.0,
+        "max": 206.12,
+        "mean": 49.6,
+        "median": 47.47,
+        "std": 16.57,
+        "negative_count": 0,
+        "negative_pct": 0.0,
+        "outliers_high_count": 395,
+        "outliers_low_count": 0
+      }
+    }
+  },
+  "outliers": {},
+  "recommendations": [
+    "Évaluer la suppression de 19 colonnes avec ≥50% de valeurs manquantes",
+    "Se concentrer sur les pays focus (DE, DK, FR) pour réduire la dimensionnalité",
+    "Utiliser forward fill pour les séries temporelles de prix et génération"
+  ]
+}

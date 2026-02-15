@@ -1,0 +1,27 @@
+# Fichiers de données brutes (trop volumineux pour GitHub)
+data/raw/
+
+# Environnements virtuels Python
+venv/
+env/
+.venv/
+
+# Fichiers Python compilés
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Fichiers temporaires
+*.tmp
+*~
