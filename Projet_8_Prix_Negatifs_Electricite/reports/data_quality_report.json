@@ -120,9 +120,7 @@
         "std": 18.14,
         "negative_count": 484,
         "negative_pct": 2.76,
-        "most_negative": -90.01,
-        "outliers_high_count": 74,
-        "outliers_low_count": 131
+        "most_negative": -90.01
       }
     },
     "DK": {
@@ -137,9 +135,7 @@
         "std": 14.85,
         "negative_count": 539,
         "negative_pct": 1.07,
-        "most_negative": -58.8,
-        "outliers_high_count": 298,
-        "outliers_low_count": 116
+        "most_negative": -58.8
       },
       "DK_2_price_day_ahead": {
         "count": 50386,
@@ -152,9 +148,7 @@
         "std": 15.72,
         "negative_count": 354,
         "negative_pct": 0.7,
-        "most_negative": -53.62,
-        "outliers_high_count": 367,
-        "outliers_low_count": 65
+        "most_negative": -53.62
       }
     },
     "FR": {
@@ -168,13 +162,10 @@
         "median": 47.47,
         "std": 16.57,
         "negative_count": 0,
-        "negative_pct": 0.0,
-        "outliers_high_count": 395,
-        "outliers_low_count": 0
+        "negative_pct": 0.0
       }
     }
   },
-  "outliers": {},
   "recommendations": [
     "Évaluer la suppression de 19 colonnes avec ≥50% de valeurs manquantes",
     "Se concentrer sur les pays focus (DE, DK, FR) pour réduire la dimensionnalité",

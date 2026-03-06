@@ -53,7 +53,6 @@ def analyze_data_quality(file_path, focus_countries=['DE', 'DK', 'FR']):
         "missing_values": {},
         "temporal_analysis": {},
         "price_analysis": {},
-        "outliers": {},
         "recommendations": []
     }
     
@@ -231,18 +230,6 @@ def analyze_data_quality(file_path, focus_countries=['DE', 'DK', 'FR']):
             if negative_count > 0:
                 logger.info(f"         Prix négatif minimum: {col_data[col_data < 0].min():.2f} EUR/MWh")
                 stats["most_negative"] = round(col_data[col_data < 0].min(), 2)
-            
-            # Outliers extrêmes (> 3 écart-types)
-            mean = col_data.mean()
-            std = col_data.std()
-            outliers_high = col_data[col_data > mean + 3*std]
-            outliers_low = col_data[col_data < mean - 3*std]
-            
-            stats["outliers_high_count"] = int(len(outliers_high))
-            stats["outliers_low_count"] = int(len(outliers_low))
-            
-            logger.info(f"         Outliers supérieurs (>μ+3σ): {len(outliers_high)}")
-            logger.info(f"         Outliers inférieurs (<μ-3σ): {len(outliers_low)}")
             
             quality_report["price_analysis"][country][col] = stats
     

@@ -132,45 +132,14 @@ Projet_8_Prix_Negatifs_Electricite/
 
 ### Pour Rôle 2 (Analyse Exploratoire)
 
-```bash
+```python
 # 1. Charger les données nettoyées
 import pandas as pd
 df = pd.read_csv('data/processed/opsd_clean_focus_countries.csv', parse_dates=['timestamp'])
 
 # 2. Consulter le dictionnaire de données
 # Lire docs/dictionnaire_donnees.md pour comprendre chaque variable
-
-# 3. Démarrer l'EDA
-# - Distributions de prix par pays
-# - Corrélations génération vs prix
-# - Analyses temporelles (hour, dayofweek, month)
 ```
-
-### Pour Rôle 3 (Feature Engineering)
-
-**Features suggérées (voir rapport qualité §7.2):**
-- `renewable_penetration = (solar + wind) / load`
-- Moyennes glissantes (3h, 6h, 24h)
-- Lags temporels (t-1, t-24, t-168)
-- Encodage cyclique pour hour/month
-- Erreurs de forecast: `actual - forecast`
-
-### Pour Rôle 4 (Modélisation)
-
-**Split temporel recommandé:**
-- Train: 2015-2018 (70%)
-- Validation: 2019 (15%)
-- Test: 2020 (15%)
-
-**Variable cible binaire:**
-```python
-df['is_negative_price'] = (df['DK_1_price_day_ahead'] < 0).astype(int)
-# ou pour Allemagne: DE_price (à reconstruire depuis TSO individuels)
-```
-
-**Gestion déséquilibre:**
-- SMOTE, class weights, focal loss
-- Métriques: F1, Precision-Recall AUC, ROC-AUC
 
 ---
 
@@ -258,6 +227,13 @@ df['is_negative_price'] = (df['DK_1_price_day_ahead'] < 0).astype(int)
 ---
 
 ## 🔄 Prochaines Étapes (S5-S8)
+
+### ⚠️ Point d'Attention Identifié en EDA
+
+**Absence de variable de prix pour l'Allemagne (`DE_LU_price_day_ahead`) :**  
+Cette colonne a été supprimée lors du nettoyage car elle avait **65.2% de valeurs manquantes** (seuil appliqué : 50%). Seules les données 2019-2020 étaient disponibles.
+
+**Impact potentiel :** La prédiction des prix négatifs en Allemagne devra utiliser les marchés DK_1 ou DK_2 comme variable cible, ou envisager une source complémentaire (ENTSO-E API) pour reconstituer les prix DE.
 
 ### Maintenance Active
 - Support Rôle 2 pour questions sur les données
