@@ -25,3 +25,7 @@ Thumbs.db
 # Fichiers temporaires
 *.tmp
 *~
+
+# Fichiers R
+.Rhistory
+.RData
