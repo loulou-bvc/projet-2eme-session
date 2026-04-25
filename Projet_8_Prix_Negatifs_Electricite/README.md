@@ -188,5 +188,14 @@ Projet_8_Prix_Negatifs_Electricite/
 
 ---
 
+## Lancer l'application Streamlit
+
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+---
+
 **Licence:** CC-BY 4.0  
 **Période:** Janvier 2026 - Avril 2026 (14 semaines)
