@@ -1,10 +1,3 @@
-"""
-Dashboard Streamlit - Prix Négatifs de l'Électricité Renouvelable en Europe
-Projet 8 - Rôle 2 : Visualisation & Interface
-
-Données : OPSD Time Series 2015-2020 (DE, DK, FR)
-"""
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -13,17 +6,14 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import os
 
-# ─────────────────────────────────────────────
 # Configuration page
-# ─────────────────────────────────────────────
 st.set_page_config(
     page_title="Prix Négatifs Électricité — Europe",
-    page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ─── CSS personnalisé : thème sombre cohérent ──
+# CSS
 st.markdown("""
 <style>
     /* Fond principal */
@@ -73,9 +63,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────
 # Chargement & cache des données
-# ─────────────────────────────────────────────
 DATA_PATH = os.path.join(
     os.path.dirname(__file__),
     "data", "processed", "opsd_clean_focus_countries.csv"
@@ -103,9 +91,7 @@ def load_data():
 
 df = load_data()
 
-# ─────────────────────────────────────────────
-# Couleurs cohérentes
-# ─────────────────────────────────────────────
+# List Couleurs
 COLORS = {
     "wind":    "#5b9bd5",
     "solar":   "#ffd166",
@@ -129,11 +115,9 @@ PLOTLY_LAYOUT = dict(
     margin=dict(l=50, r=30, t=40, b=40),
 )
 
-# ─────────────────────────────────────────────
 # SIDEBAR — Filtres
-# ─────────────────────────────────────────────
 with st.sidebar:
-    st.markdown('<div class="sidebar-title">⚡ Filtres du Dashboard</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-title">Filtres du Dashboard</div>', unsafe_allow_html=True)
     st.caption("Prix Négatifs d'Électricité — Europe (2015–2020)")
     st.divider()
 
@@ -179,9 +163,7 @@ with st.sidebar:
     st.divider()
     st.caption("Source : Open Power System Data (OPSD)\nLicence CC-BY 4.0 — TU Berlin / ETH Zürich")
 
-# ─────────────────────────────────────────────
 # Application des filtres
-# ─────────────────────────────────────────────
 mask = (
     df["year"].between(year_range[0], year_range[1]) &
     df["month_num"].isin(months_sel)
@@ -193,19 +175,15 @@ elif day_type == "Weekend":
 
 dff = df[mask].copy()
 
-# ─────────────────────────────────────────────
 # ENTÊTE
-# ─────────────────────────────────────────────
-st.markdown("## ⚡ Prix Négatifs de l'Électricité Renouvelable en Europe")
+st.markdown("## Prix Négatifs de l'Électricité Renouvelable en Europe")
 st.caption(
     f"Données horaires OPSD · {year_range[0]}–{year_range[1]} · "
     f"{season_sel} · {day_type} · {len(dff):,} observations filtrées"
 )
 
-# ─────────────────────────────────────────────
 # SECTION 1 — VUE D'ENSEMBLE (KPIs)
-# ─────────────────────────────────────────────
-st.markdown('<div class="section-title">📊 Vue d\'ensemble</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Vue d\'ensemble</div>', unsafe_allow_html=True)
 st.markdown('<div class="section-sub">Chiffres clés — lisez la situation en 5 secondes</div>', unsafe_allow_html=True)
 
 prices = dff[price_col].dropna()
@@ -272,27 +250,25 @@ with col5:
 st.markdown("<br>", unsafe_allow_html=True)
 if neg_pct > 5:
     st.markdown(
-        f'<div class="alert-red alert-text">🔴 <strong>ALERTE :</strong> {neg_pct:.1f}% des heures ont un prix négatif sur la période sélectionnée. '
+        f'<div class="alert-red alert-text"><strong>ALERTE :</strong> {neg_pct:.1f}% des heures ont un prix négatif sur la période sélectionnée. '
         f'Le réseau est en surproduction structurelle — les flexibilités (stockage, effacement) sont insuffisantes.</div>',
         unsafe_allow_html=True
     )
 elif neg_pct > 1:
     st.markdown(
-        f'<div class="alert-yellow alert-text">🟡 <strong>VIGILANCE :</strong> {neg_pct:.1f}% des heures à prix négatif. '
+        f'<div class="alert-yellow alert-text"><strong>VIGILANCE :</strong> {neg_pct:.1f}% des heures à prix négatif. '
         f'Surproduction ponctuelle renouvelable observée — opportunité de stockage ou d\'export.</div>',
         unsafe_allow_html=True
     )
 else:
     st.markdown(
-        f'<div class="alert-green alert-text">🟢 <strong>NORMAL :</strong> {neg_pct:.2f}% des heures à prix négatif. '
+        f'<div class="alert-green alert-text"><strong>NORMAL :</strong> {neg_pct:.2f}% des heures à prix négatif. '
         f'Equilibre offre/demande satisfaisant sur la période.</div>',
         unsafe_allow_html=True
     )
 
-# ─────────────────────────────────────────────
 # SECTION 2 — PRIX DAY-AHEAD
-# ─────────────────────────────────────────────
-st.markdown('<div class="section-title">💰 Prix Day-Ahead</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Prix Day-Ahead</div>', unsafe_allow_html=True)
 st.markdown('<div class="section-sub">Série temporelle avec seuil 0 €/MWh — les zones rouges signalent un dysfonctionnement de marché</div>', unsafe_allow_html=True)
 
 col_ts, col_dist = st.columns([3, 1])
@@ -399,10 +375,8 @@ if "DK" in zone_sel:
         fig_cmp.update_layout(**PLOTLY_LAYOUT, xaxis_title="Date", yaxis_title="€/MWh", height=300)
         st.plotly_chart(fig_cmp, use_container_width=True)
 
-# ─────────────────────────────────────────────
 # SECTION 3 — PRODUCTION RENOUVELABLE vs PRIX
-# ─────────────────────────────────────────────
-st.markdown('<div class="section-title">🌬️ Production Renouvelable & Prix</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Production Renouvelable & Prix</div>', unsafe_allow_html=True)
 st.markdown('<div class="section-sub">La causalité derrière les prix négatifs : fort vent + fort solaire → prix qui s\'effondre</div>', unsafe_allow_html=True)
 
 col_scatter, col_stack = st.columns([1, 2])
@@ -494,7 +468,6 @@ with col_stack:
         yaxis_title="MW",
         yaxis2_title="€/MWh",
         height=370,
-        legend=dict(bgcolor="#1a1d2e", bordercolor="#30363d", borderwidth=1),
     )
     st.plotly_chart(fig_stack, use_container_width=True)
 
@@ -524,10 +497,8 @@ fig_pen.update_layout(
 )
 st.plotly_chart(fig_pen, use_container_width=True)
 
-# ─────────────────────────────────────────────
 # SECTION 4 — ANALYSE TEMPORELLE
-# ─────────────────────────────────────────────
-st.markdown('<div class="section-title">🗓️ Patterns Temporels des Prix Négatifs</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Patterns Temporels des Prix Négatifs</div>', unsafe_allow_html=True)
 st.markdown('<div class="section-sub">Quand les prix négatifs apparaissent-ils ? Heure, mois, année — pour anticiper et agir</div>', unsafe_allow_html=True)
 
 col_hm, col_year = st.columns([2, 1])
@@ -627,26 +598,23 @@ fig_hourly.add_trace(go.Scatter(
 ))
 fig_hourly.add_hline(y=0, line=dict(color="#e74c3c", width=1.5, dash="dash"))
 fig_hourly.update_layout(
-    **PLOTLY_LAYOUT,
+    **{**PLOTLY_LAYOUT, "xaxis": dict(tickmode="linear", dtick=2, **PLOTLY_LAYOUT["xaxis"])},
     title="Profil horaire moyen du prix (± écart-type)",
     xaxis_title="Heure de la journée",
     yaxis_title="Prix (€/MWh)",
-    xaxis=dict(tickmode="linear", dtick=2, **PLOTLY_LAYOUT["xaxis"]),
     height=260,
     showlegend=False,
 )
 st.plotly_chart(fig_hourly, use_container_width=True)
 
-# ─────────────────────────────────────────────
 # SECTION 5 — CHARGE & CAPACITÉS
-# ─────────────────────────────────────────────
-st.markdown('<div class="section-title">🏭 Charge & Capacités Installées</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Charge & Capacités Installées</div>', unsafe_allow_html=True)
 st.markdown('<div class="section-sub">Demande réelle vs prévision · Évolution des capacités renouvelables</div>', unsafe_allow_html=True)
 
 col_load, col_cap = st.columns(2)
 
 with col_load:
-    # Load actual vs forecast DE — dernière semaine dans la sélection
+    # Load actual vs forecast DE
     load_daily = dff.groupby("date")[
         ["DE_load_actual_entsoe_transparency", "DE_load_forecast_entsoe_transparency",
          "DK_load_actual_entsoe_transparency", "FR_load_actual_entsoe_transparency"]
@@ -723,10 +691,8 @@ with col_cap:
     )
     st.plotly_chart(fig_cap, use_container_width=True)
 
-# ─────────────────────────────────────────────
 # SECTION 6 — ERREUR DE PRÉVISION
-# ─────────────────────────────────────────────
-st.markdown('<div class="section-title">📐 Erreur de Prévision de Charge</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Erreur de Prévision de Charge</div>', unsafe_allow_html=True)
 st.markdown('<div class="section-sub">Écart (MW) entre charge réelle et prévue — un fort écart positif = déséquilibre réseau</div>', unsafe_allow_html=True)
 
 dff["DE_load_error"] = dff["DE_load_actual_entsoe_transparency"] - dff["DE_load_forecast_entsoe_transparency"]
@@ -761,12 +727,10 @@ fig_err.update_layout(
 )
 st.plotly_chart(fig_err, use_container_width=True)
 
-# ─────────────────────────────────────────────
 # FOOTER
-# ─────────────────────────────────────────────
 st.divider()
 st.caption(
     "**Projet 8 — Prix Négatifs de l'Électricité Renouvelable en Europe**  \n"
     "Source : Open Power System Data (OPSD) · Licence CC-BY 4.0 · TU Berlin / ETH Zürich  \n"
-    "Rôle 2 — Visualisation & Interface · Dashboard Streamlit + Plotly"
+    "Rôle 6 — Visualisation & Interface · Dashboard Streamlit + Plotly"
 )
