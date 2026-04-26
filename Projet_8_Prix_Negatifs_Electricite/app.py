@@ -6,7 +6,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import os
 
-# Configuration page
+# CONFIGURATION PAGE
 st.set_page_config(
     page_title="Prix Négatifs Électricité — Europe",
     layout="wide",
@@ -60,10 +60,41 @@ st.markdown("""
     /* Sidebar */
     section[data-testid="stSidebar"] { background-color: #161b22; }
     .sidebar-title { color:#58a6ff; font-weight:700; font-size:15px; margin-bottom:4px; }
+
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 4px;
+        background-color: #161b22;
+        border-radius: 8px;
+        padding: 6px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: transparent;
+        color: #8892a4;
+        border-radius: 6px;
+        padding: 10px 18px;
+        font-weight: 500;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #1a1d2e !important;
+        color: #58a6ff !important;
+    }
+
+    /* Placeholder pour modèle ML */
+    .ml-placeholder {
+        background: #1a1d2e;
+        border: 1px dashed #58a6ff;
+        border-radius: 10px;
+        padding: 30px;
+        text-align: center;
+        color: #8892a4;
+        margin: 12px 0;
+    }
+    .ml-placeholder h4 { color: #58a6ff; margin-bottom: 8px; }
 </style>
 """, unsafe_allow_html=True)
 
-# Chargement & cache des données
+# CHARGEMENT & CACHE DES DONNÉES
 DATA_PATH = os.path.join(
     os.path.dirname(__file__),
     "data", "processed", "opsd_clean_focus_countries.csv"
@@ -91,7 +122,7 @@ def load_data():
 
 df = load_data()
 
-# List Couleurs
+# CONSTANTES VISUELLES
 COLORS = {
     "wind":    "#5b9bd5",
     "solar":   "#ffd166",
@@ -115,7 +146,7 @@ PLOTLY_LAYOUT = dict(
     margin=dict(l=50, r=30, t=40, b=40),
 )
 
-# SIDEBAR — Filtres
+# SIDEBAR — FILTRES GLOBAUX
 with st.sidebar:
     st.markdown('<div class="sidebar-title">Filtres du Dashboard</div>', unsafe_allow_html=True)
     st.caption("Prix Négatifs d'Électricité — Europe (2015–2020)")
@@ -153,7 +184,7 @@ with st.sidebar:
     # Zone de marché prix
     st.markdown("**Zone de marché (prix)**")
     zone_labels = {
-        "DK-1 (Est Danemark)":  "DK_1_price_day_ahead",
+        "DK-1 (Est Danemark)":   "DK_1_price_day_ahead",
         "DK-2 (Ouest Danemark)": "DK_2_price_day_ahead",
         "IT-NORD/France":        "IT_NORD_FR_price_day_ahead",
     }
@@ -161,9 +192,15 @@ with st.sidebar:
     price_col = zone_labels[zone_sel]
 
     st.divider()
+
+    # Bouton de téléchargement
+    st.markdown("**Export des données**")
+    st.caption("Téléchargez les observations correspondant aux filtres actifs")
+
+    st.divider()
     st.caption("Source : Open Power System Data (OPSD)\nLicence CC-BY 4.0 — TU Berlin / ETH Zürich")
 
-# Application des filtres
+# APPLICATION DES FILTRES
 mask = (
     df["year"].between(year_range[0], year_range[1]) &
     df["month_num"].isin(months_sel)
@@ -175,6 +212,17 @@ elif day_type == "Weekend":
 
 dff = df[mask].copy()
 
+# Bouton download (dans la sidebar mais après calcul de dff)
+with st.sidebar:
+    csv_data = dff.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="⬇ Télécharger CSV filtré",
+        data=csv_data,
+        file_name=f"opsd_filtered_{year_range[0]}_{year_range[1]}.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+
 # ENTÊTE
 st.markdown("## Prix Négatifs de l'Électricité Renouvelable en Europe")
 st.caption(
@@ -182,10 +230,7 @@ st.caption(
     f"{season_sel} · {day_type} · {len(dff):,} observations filtrées"
 )
 
-# SECTION 1 — VUE D'ENSEMBLE (KPIs)
-st.markdown('<div class="section-title">Vue d\'ensemble</div>', unsafe_allow_html=True)
-st.markdown('<div class="section-sub">Chiffres clés — lisez la situation en 5 secondes</div>', unsafe_allow_html=True)
-
+# CALCULS PARTAGÉS (utilisés dans plusieurs onglets)
 prices = dff[price_col].dropna()
 neg_count  = (prices < 0).sum()
 neg_pct    = neg_count / len(prices) * 100 if len(prices) > 0 else 0
@@ -203,461 +248,315 @@ def kpi_card(label, value, sub, level="green"):
     </div>
     """
 
-# Seuils de couleur pour prix moyen
-if avg_price < 0:
-    price_level = "red"
-elif avg_price < 20:
-    price_level = "yellow"
-else:
-    price_level = "green"
+# CRÉATION DES ONGLETS
+tab_overview, tab_causality, tab_temporal, tab_capacity, tab_ml = st.tabs([
+    "Vue d'ensemble",
+    "Causalité EnR → Prix",
+    "Patterns temporels",
+    "Charge & Capacités",
+    "Modèle prédictif",
+])
 
-neg_level = "red" if neg_pct > 5 else ("yellow" if neg_pct > 1 else "green")
+# ONGLET 1 — VUE D'ENSEMBLE
+with tab_overview:
 
-col1, col2, col3, col4, col5 = st.columns(5)
+    # KPIs
+    st.markdown('<div class="section-title">Chiffres clés</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-sub">Lisez la situation en 5 secondes</div>', unsafe_allow_html=True)
 
-with col1:
-    st.markdown(kpi_card(
-        "Prix moyen", f"{avg_price:.1f} €/MWh",
-        f"Zone : {zone_sel}", price_level
-    ), unsafe_allow_html=True)
+    if avg_price < 0:
+        price_level = "red"
+    elif avg_price < 20:
+        price_level = "yellow"
+    else:
+        price_level = "green"
+    neg_level = "red" if neg_pct > 5 else ("yellow" if neg_pct > 1 else "green")
 
-with col2:
-    st.markdown(kpi_card(
-        "% Heures négatives", f"{neg_pct:.2f}%",
-        f"{neg_count:,} occurrences", neg_level
-    ), unsafe_allow_html=True)
+    col1, col2, col3, col4, col5 = st.columns(5)
+    with col1:
+        st.markdown(kpi_card("Prix moyen", f"{avg_price:.1f} €/MWh",
+                             f"Zone : {zone_sel}", price_level), unsafe_allow_html=True)
+    with col2:
+        st.markdown(kpi_card("% Heures négatives", f"{neg_pct:.2f}%",
+                             f"{neg_count:,} occurrences", neg_level), unsafe_allow_html=True)
+    with col3:
+        st.markdown(kpi_card("Prix minimum (pire)", f"{min_price:.1f} €/MWh",
+                             "Surproduction extrême",
+                             "red" if min_price < 0 else "green"), unsafe_allow_html=True)
+    with col4:
+        st.markdown(kpi_card("Prix maximum", f"{max_price:.1f} €/MWh",
+                             "Pic de tension réseau", "yellow"), unsafe_allow_html=True)
+    with col5:
+        st.markdown(kpi_card("Charge moy. Allemagne", f"{de_avg_load/1000:.1f} GW",
+                             "Demande nationale DE", "green"), unsafe_allow_html=True)
 
-with col3:
-    st.markdown(kpi_card(
-        "Prix minimum (pire)", f"{min_price:.1f} €/MWh",
-        "Surproduction extrême",
-        "red" if min_price < 0 else "green"
-    ), unsafe_allow_html=True)
+    # Bandeau d'alerte
+    st.markdown("<br>", unsafe_allow_html=True)
+    if neg_pct > 5:
+        st.markdown(
+            f'<div class="alert-red alert-text"><strong>ALERTE :</strong> {neg_pct:.1f}% des heures ont un prix négatif sur la période sélectionnée. '
+            f'Le réseau est en surproduction structurelle — les flexibilités (stockage, effacement) sont insuffisantes.</div>',
+            unsafe_allow_html=True
+        )
+    elif neg_pct > 1:
+        st.markdown(
+            f'<div class="alert-yellow alert-text"><strong>VIGILANCE :</strong> {neg_pct:.1f}% des heures à prix négatif. '
+            f'Surproduction ponctuelle renouvelable observée — opportunité de stockage ou d\'export.</div>',
+            unsafe_allow_html=True
+        )
+    else:
+        st.markdown(
+            f'<div class="alert-green alert-text"><strong>NORMAL :</strong> {neg_pct:.2f}% des heures à prix négatif. '
+            f'Equilibre offre/demande satisfaisant sur la période.</div>',
+            unsafe_allow_html=True
+        )
 
-with col4:
-    st.markdown(kpi_card(
-        "Prix maximum", f"{max_price:.1f} €/MWh",
-        "Pic de tension réseau", "yellow"
-    ), unsafe_allow_html=True)
+    # Prix Day-Ahead
+    st.markdown('<div class="section-title">Prix Day-Ahead</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-sub">Série temporelle avec seuil 0 €/MWh — les zones rouges signalent un dysfonctionnement de marché</div>', unsafe_allow_html=True)
 
-with col5:
-    st.markdown(kpi_card(
-        "Charge moy. Allemagne", f"{de_avg_load/1000:.1f} GW",
-        "Demande nationale DE", "green"
-    ), unsafe_allow_html=True)
+    col_ts, col_dist = st.columns([3, 1])
 
-# Alerte décisionnelle
-st.markdown("<br>", unsafe_allow_html=True)
-if neg_pct > 5:
-    st.markdown(
-        f'<div class="alert-red alert-text"><strong>ALERTE :</strong> {neg_pct:.1f}% des heures ont un prix négatif sur la période sélectionnée. '
-        f'Le réseau est en surproduction structurelle — les flexibilités (stockage, effacement) sont insuffisantes.</div>',
-        unsafe_allow_html=True
-    )
-elif neg_pct > 1:
-    st.markdown(
-        f'<div class="alert-yellow alert-text"><strong>VIGILANCE :</strong> {neg_pct:.1f}% des heures à prix négatif. '
-        f'Surproduction ponctuelle renouvelable observée — opportunité de stockage ou d\'export.</div>',
-        unsafe_allow_html=True
-    )
-else:
-    st.markdown(
-        f'<div class="alert-green alert-text"><strong>NORMAL :</strong> {neg_pct:.2f}% des heures à prix négatif. '
-        f'Equilibre offre/demande satisfaisant sur la période.</div>',
-        unsafe_allow_html=True
-    )
+    with col_ts:
+        # Prix day-ahead journalier moyen (fig_price)
+        daily = dff.groupby("date")[price_col].mean().reset_index()
+        daily.columns = ["date", "price"]
+        daily["date"] = pd.to_datetime(daily["date"])
 
-# SECTION 2 — PRIX DAY-AHEAD
-st.markdown('<div class="section-title">Prix Day-Ahead</div>', unsafe_allow_html=True)
-st.markdown('<div class="section-sub">Série temporelle avec seuil 0 €/MWh — les zones rouges signalent un dysfonctionnement de marché</div>', unsafe_allow_html=True)
+        fig_price = go.Figure()
+        fig_price.add_hrect(
+            y0=daily["price"].min() - 5, y1=0,
+            fillcolor="rgba(231,76,60,0.12)", line_width=0,
+            annotation_text="Zone négative", annotation_position="top left",
+            annotation_font_color="#e74c3c", annotation_font_size=11,
+        )
+        fig_price.add_trace(go.Scatter(
+            x=daily["date"], y=daily["price"], mode="lines", name=zone_sel,
+            line=dict(color=COLORS["price"], width=1.5),
+            fill="tozeroy", fillcolor="rgba(253,127,111,0.10)",
+        ))
+        fig_price.add_hline(y=0, line=dict(color="#e74c3c", width=1.5, dash="dash"),
+                            annotation_text="Seuil 0 €/MWh", annotation_font_color="#e74c3c")
+        fig_price.add_hline(y=20, line=dict(color="#f39c12", width=1, dash="dot"),
+                            annotation_text="20 €/MWh", annotation_font_color="#f39c12")
+        fig_price.update_layout(
+            **PLOTLY_LAYOUT,
+            title=f"Prix day-ahead journalier moyen — {zone_sel}",
+            xaxis_title="Date", yaxis_title="Prix (€/MWh)",
+            height=320, showlegend=False,
+        )
+        st.plotly_chart(fig_price, use_container_width=True)
 
-col_ts, col_dist = st.columns([3, 1])
+    with col_dist:
+        # Distribution des prix (fig_hist)
+        fig_hist = go.Figure()
+        fig_hist.add_trace(go.Histogram(
+            x=dff[price_col].dropna(), nbinsx=60,
+            name="Distribution", marker_color=COLORS["price"], opacity=0.8,
+        ))
+        fig_hist.add_vline(x=0, line=dict(color="#e74c3c", width=2, dash="dash"),
+                           annotation_text="0 €", annotation_font_color="#e74c3c")
+        fig_hist.update_layout(
+            **PLOTLY_LAYOUT,
+            title="Distribution des prix",
+            xaxis_title="€/MWh", yaxis_title="Fréquence",
+            height=320, showlegend=False,
+        )
+        st.plotly_chart(fig_hist, use_container_width=True)
 
-with col_ts:
-    # Agrégation journalière pour lisibilité
-    daily = dff.groupby("date")[price_col].mean().reset_index()
-    daily.columns = ["date", "price"]
-    daily["date"] = pd.to_datetime(daily["date"])
+# ONGLET 2 — CAUSALITÉ EnR → PRIX
+with tab_causality:
 
-    fig_price = go.Figure()
+    st.markdown('<div class="section-title">Production Renouvelable & Prix</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-sub">La causalité derrière les prix négatifs : fort vent + fort solaire → prix qui s\'effondre</div>', unsafe_allow_html=True)
 
-    # Zone de remplissage : prix négatifs en rouge
-    fig_price.add_hrect(
-        y0=daily["price"].min() - 5, y1=0,
-        fillcolor="rgba(231,76,60,0.12)",
-        line_width=0,
-        annotation_text="Zone négative",
-        annotation_position="top left",
-        annotation_font_color="#e74c3c",
-        annotation_font_size=11,
-    )
+    col_scatter, col_stack = st.columns([1, 2])
 
-    # Ligne de prix
-    fig_price.add_trace(go.Scatter(
-        x=daily["date"], y=daily["price"],
-        mode="lines",
-        name=zone_sel,
-        line=dict(color=COLORS["price"], width=1.5),
-        fill="tozeroy",
-        fillcolor="rgba(253,127,111,0.10)",
-    ))
+    with col_scatter:
+        # Renouvelable DE vs Prix (fig_sc)
+        sample = dff.sample(min(3000, len(dff)), random_state=42)
+        price_for_scatter = "DK_1_price_day_ahead" if price_col == "DK_1_price_day_ahead" else price_col
 
-    # Seuil à 0
-    fig_price.add_hline(
-        y=0,
-        line=dict(color="#e74c3c", width=1.5, dash="dash"),
-        annotation_text="Seuil 0 €/MWh",
-        annotation_font_color="#e74c3c",
-    )
-    # Seuil vigilance 20
-    fig_price.add_hline(
-        y=20,
-        line=dict(color="#f39c12", width=1, dash="dot"),
-        annotation_text="20 €/MWh",
-        annotation_font_color="#f39c12",
-    )
+        fig_sc = go.Figure()
+        fig_sc.add_trace(go.Scatter(
+            x=sample["DE_renewable_gen"], y=sample[price_for_scatter],
+            mode="markers",
+            marker=dict(
+                color=sample[price_for_scatter],
+                colorscale=[
+                    [0.0, "#e74c3c"], [0.35, "#f39c12"],
+                    [0.6, "#2ecc71"], [1.0, "#5b9bd5"],
+                ],
+                cmin=sample[price_for_scatter].quantile(0.01),
+                cmax=sample[price_for_scatter].quantile(0.99),
+                size=3, opacity=0.6,
+                colorbar=dict(title="€/MWh", len=0.6),
+            ),
+            hovertemplate="Renouvelable: %{x:,.0f} MW<br>Prix: %{y:.1f} €/MWh<extra></extra>",
+        ))
+        fig_sc.add_hline(y=0, line=dict(color="#e74c3c", width=1.5, dash="dash"))
+        fig_sc.update_layout(
+            **PLOTLY_LAYOUT,
+            title="Renouvelable DE vs Prix",
+            xaxis_title="Vent + Solaire DE (MW)", yaxis_title="Prix (€/MWh)",
+            height=370,
+        )
+        st.plotly_chart(fig_sc, use_container_width=True)
 
-    fig_price.update_layout(
-        **PLOTLY_LAYOUT,
-        title=f"Prix day-ahead journalier moyen — {zone_sel}",
-        xaxis_title="Date",
-        yaxis_title="Prix (€/MWh)",
-        height=320,
-        showlegend=False,
-    )
-    st.plotly_chart(fig_price, use_container_width=True)
+    with col_stack:
+        # Mix énergétique DE & Prix DK-1 (fig_stack)
+        weekly = dff.copy()
+        weekly["week"] = weekly["timestamp"].dt.to_period("W").dt.start_time
+        weekly_agg = weekly.groupby("week").agg(
+            wind=("DE_wind_generation_actual", "mean"),
+            solar=("DE_solar_generation_actual", "mean"),
+            load=("DE_load_actual_entsoe_transparency", "mean"),
+            price_dk1=("DK_1_price_day_ahead", "mean"),
+        ).reset_index()
 
-with col_dist:
-    fig_hist = go.Figure()
-    fig_hist.add_trace(go.Histogram(
-        x=dff[price_col].dropna(),
-        nbinsx=60,
-        name="Distribution",
-        marker_color=COLORS["price"],
-        opacity=0.8,
-    ))
-    fig_hist.add_vline(
-        x=0,
-        line=dict(color="#e74c3c", width=2, dash="dash"),
-        annotation_text="0 €",
-        annotation_font_color="#e74c3c",
-    )
-    fig_hist.update_layout(
-        **PLOTLY_LAYOUT,
-        title="Distribution des prix",
-        xaxis_title="€/MWh",
-        yaxis_title="Fréquence",
-        height=320,
-        showlegend=False,
-    )
-    st.plotly_chart(fig_hist, use_container_width=True)
+        fig_stack = make_subplots(
+            rows=2, cols=1, shared_xaxes=True,
+            row_heights=[0.65, 0.35], vertical_spacing=0.05,
+        )
+        fig_stack.add_trace(go.Scatter(
+            x=weekly_agg["week"], y=weekly_agg["load"],
+            mode="lines", name="Charge DE",
+            line=dict(color=COLORS["load"], width=1.5, dash="dot"), fill=None,
+        ), row=1, col=1)
+        fig_stack.add_trace(go.Scatter(
+            x=weekly_agg["week"], y=weekly_agg["wind"],
+            mode="lines", name="Éolien DE", stackgroup="gen",
+            line=dict(color=COLORS["wind"], width=0),
+            fillcolor="rgba(91,155,213,0.6)",
+        ), row=1, col=1)
+        fig_stack.add_trace(go.Scatter(
+            x=weekly_agg["week"], y=weekly_agg["solar"],
+            mode="lines", name="Solaire DE", stackgroup="gen",
+            line=dict(color=COLORS["solar"], width=0),
+            fillcolor="rgba(255,209,102,0.7)",
+        ), row=1, col=1)
+        fig_stack.add_trace(go.Scatter(
+            x=weekly_agg["week"], y=weekly_agg["price_dk1"],
+            mode="lines", name="Prix DK-1",
+            line=dict(color=COLORS["price"], width=1.5),
+            fill="tozeroy", fillcolor="rgba(253,127,111,0.10)",
+        ), row=2, col=1)
+        fig_stack.add_hline(y=0, line=dict(color="#e74c3c", width=1, dash="dash"), row=2, col=1)
+        fig_stack.update_layout(
+            **PLOTLY_LAYOUT,
+            title="Mix énergétique DE (moy. hebdomadaire) & Prix DK-1",
+            yaxis_title="MW", yaxis2_title="€/MWh",
+            height=370,
+        )
+        st.plotly_chart(fig_stack, use_container_width=True)
 
-# Comparaison 3 zones si on est sur DK
-if "DK" in zone_sel:
-    with st.expander("Comparer les 3 zones de marché"):
-        daily_all = dff.groupby("date")[
-            ["DK_1_price_day_ahead", "DK_2_price_day_ahead", "IT_NORD_FR_price_day_ahead"]
-        ].mean().reset_index()
-        daily_all["date"] = pd.to_datetime(daily_all["date"])
+# ONGLET 3 — PATTERNS TEMPORELS
+with tab_temporal:
 
-        fig_cmp = go.Figure()
-        for col, name, color in [
-            ("DK_1_price_day_ahead", "DK-1 (Est)", COLORS["dk1"]),
-            ("DK_2_price_day_ahead", "DK-2 (Ouest)", COLORS["dk2"]),
-            ("IT_NORD_FR_price_day_ahead", "IT-NORD/FR", COLORS["fr"]),
-        ]:
-            fig_cmp.add_trace(go.Scatter(
-                x=daily_all["date"], y=daily_all[col],
-                mode="lines", name=name,
-                line=dict(color=color, width=1.2),
-            ))
-        fig_cmp.add_hline(y=0, line=dict(color="#e74c3c", width=1.5, dash="dash"))
-        fig_cmp.update_layout(**PLOTLY_LAYOUT, xaxis_title="Date", yaxis_title="€/MWh", height=300)
-        st.plotly_chart(fig_cmp, use_container_width=True)
+    st.markdown('<div class="section-title">Patterns Temporels des Prix Négatifs</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-sub">Quand les prix négatifs apparaissent-ils ? Heure, mois, année — pour anticiper et agir</div>', unsafe_allow_html=True)
 
-# SECTION 3 — PRODUCTION RENOUVELABLE vs PRIX
-st.markdown('<div class="section-title">Production Renouvelable & Prix</div>', unsafe_allow_html=True)
-st.markdown('<div class="section-sub">La causalité derrière les prix négatifs : fort vent + fort solaire → prix qui s\'effondre</div>', unsafe_allow_html=True)
+    col_hm, col_year = st.columns([2, 1])
 
-col_scatter, col_stack = st.columns([1, 2])
+    with col_hm:
+        # Heatmap heure × mois (fig_hm)
+        neg_flag = "DK_1_price_day_ahead" if "DK" in zone_sel else price_col
+        hm_data = dff.groupby(["hour", "month_num"]).apply(
+            lambda g: (g[neg_flag] < 0).mean() * 100
+        ).reset_index(name="neg_pct")
 
-with col_scatter:
-    # Sample pour performance
-    sample = dff.sample(min(3000, len(dff)), random_state=42)
-    price_for_scatter = "DK_1_price_day_ahead" if price_col == "DK_1_price_day_ahead" else price_col
+        hm_pivot = hm_data.pivot(index="hour", columns="month_num", values="neg_pct")
+        month_labels = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun",
+                        "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"]
+        cols_present = [c for c in range(1, 13) if c in hm_pivot.columns]
+        hm_pivot = hm_pivot[cols_present]
+        col_labels = [month_labels[c - 1] for c in cols_present]
 
-    fig_sc = go.Figure()
-    fig_sc.add_trace(go.Scatter(
-        x=sample["DE_renewable_gen"],
-        y=sample[price_for_scatter],
-        mode="markers",
-        marker=dict(
-            color=sample[price_for_scatter],
+        fig_hm = go.Figure(go.Heatmap(
+            z=hm_pivot.values, x=col_labels, y=list(hm_pivot.index),
             colorscale=[
-                [0.0, "#e74c3c"],
-                [0.35, "#f39c12"],
-                [0.6, "#2ecc71"],
-                [1.0, "#5b9bd5"],
+                [0.0, "#0d2a1a"], [0.01, "#2ecc71"],
+                [0.10, "#f39c12"], [0.30, "#e74c3c"], [1.0, "#7b0000"],
             ],
-            cmin=sample[price_for_scatter].quantile(0.01),
-            cmax=sample[price_for_scatter].quantile(0.99),
-            size=3,
-            opacity=0.6,
-            colorbar=dict(title="€/MWh", len=0.6),
-        ),
-        hovertemplate="Renouvelable: %{x:,.0f} MW<br>Prix: %{y:.1f} €/MWh<extra></extra>",
+            colorbar=dict(title="% heures<br>négatives"),
+            hovertemplate="Heure %{y}h · %{x}<br>% négatif : %{z:.1f}%<extra></extra>",
+        ))
+        fig_hm.update_layout(
+            **PLOTLY_LAYOUT,
+            title="Heatmap : % heures à prix négatif par heure × mois",
+            xaxis_title="Mois", yaxis_title="Heure du jour",
+            height=380,
+        )
+        st.plotly_chart(fig_hm, use_container_width=True)
+
+    with col_year:
+        # Heures à prix négatif / an (fig_yr)
+        yearly_neg = dff[dff[price_col] < 0].groupby("year").size().reset_index(name="neg_count")
+        yearly_total = dff.groupby("year").size().reset_index(name="total")
+        yearly = yearly_neg.merge(yearly_total, on="year", how="right").fillna(0)
+        yearly["neg_pct"] = yearly["neg_count"] / yearly["total"] * 100
+
+        fig_yr = go.Figure()
+        fig_yr.add_trace(go.Bar(
+            x=yearly["year"].astype(str), y=yearly["neg_count"],
+            marker_color=[
+                "#e74c3c" if p > 3 else ("#f39c12" if p > 1 else "#2ecc71")
+                for p in yearly["neg_pct"]
+            ],
+            text=yearly["neg_pct"].apply(lambda v: f"{v:.1f}%"),
+            textposition="outside",
+            textfont=dict(color="#c9d1d9", size=11),
+            hovertemplate="Année %{x}<br>%{y:.0f} heures négatives<extra></extra>",
+        ))
+        fig_yr.update_layout(
+            **PLOTLY_LAYOUT,
+            title="Heures à prix négatif / an",
+            xaxis_title="Année", yaxis_title="Nombre d'heures",
+            height=380, showlegend=False,
+        )
+        st.plotly_chart(fig_yr, use_container_width=True)
+
+    # Profil horaire moyen (fig_hourly)
+    hourly_avg = dff.groupby("hour")[price_col].mean().reset_index()
+    hourly_std = dff.groupby("hour")[price_col].std().reset_index(name="std")
+    hourly_p = hourly_avg.merge(hourly_std, on="hour")
+    hourly_p["upper"] = hourly_p[price_col] + hourly_p["std"]
+    hourly_p["lower"] = hourly_p[price_col] - hourly_p["std"]
+
+    fig_hourly = go.Figure()
+    fig_hourly.add_trace(go.Scatter(
+        x=hourly_p["hour"], y=hourly_p["upper"],
+        mode="lines", line=dict(width=0), showlegend=False,
+        fillcolor="rgba(253,127,111,0.15)", fill=None,
     ))
-    fig_sc.add_hline(y=0, line=dict(color="#e74c3c", width=1.5, dash="dash"))
-    fig_sc.update_layout(
-        **PLOTLY_LAYOUT,
-        title="Renouvelable DE vs Prix",
-        xaxis_title="Vent + Solaire DE (MW)",
-        yaxis_title="Prix (€/MWh)",
-        height=370,
+    fig_hourly.add_trace(go.Scatter(
+        x=hourly_p["hour"], y=hourly_p["lower"],
+        mode="lines", line=dict(width=0), showlegend=False,
+        fill="tonexty", fillcolor="rgba(253,127,111,0.15)",
+    ))
+    fig_hourly.add_trace(go.Scatter(
+        x=hourly_p["hour"], y=hourly_p[price_col],
+        mode="lines+markers", name="Prix moyen",
+        line=dict(color=COLORS["price"], width=2),
+        marker=dict(size=6),
+        hovertemplate="Heure %{x}h<br>Prix moy : %{y:.1f} €/MWh<extra></extra>",
+    ))
+    fig_hourly.add_hline(y=0, line=dict(color="#e74c3c", width=1.5, dash="dash"))
+    fig_hourly.update_layout(
+        **{**PLOTLY_LAYOUT, "xaxis": dict(tickmode="linear", dtick=2, **PLOTLY_LAYOUT["xaxis"])},
+        title="Profil horaire moyen du prix (± écart-type)",
+        xaxis_title="Heure de la journée", yaxis_title="Prix (€/MWh)",
+        height=260, showlegend=False,
     )
-    st.plotly_chart(fig_sc, use_container_width=True)
+    st.plotly_chart(fig_hourly, use_container_width=True)
 
-with col_stack:
-    # Production renouvelable DE + charge, agrégation hebdomadaire
-    weekly = dff.copy()
-    weekly["week"] = weekly["timestamp"].dt.to_period("W").dt.start_time
-    weekly_agg = weekly.groupby("week").agg(
-        wind=("DE_wind_generation_actual", "mean"),
-        solar=("DE_solar_generation_actual", "mean"),
-        load=("DE_load_actual_entsoe_transparency", "mean"),
-        price_dk1=("DK_1_price_day_ahead", "mean"),
-    ).reset_index()
+# ONGLET 4 — CHARGE & CAPACITÉS
+with tab_capacity:
 
-    fig_stack = make_subplots(
-        rows=2, cols=1, shared_xaxes=True,
-        row_heights=[0.65, 0.35],
-        vertical_spacing=0.05,
-    )
-    fig_stack.add_trace(go.Scatter(
-        x=weekly_agg["week"], y=weekly_agg["load"],
-        mode="lines", name="Charge DE",
-        line=dict(color=COLORS["load"], width=1.5, dash="dot"),
-        fill=None,
-    ), row=1, col=1)
-    fig_stack.add_trace(go.Scatter(
-        x=weekly_agg["week"], y=weekly_agg["wind"],
-        mode="lines", name="Éolien DE",
-        stackgroup="gen",
-        line=dict(color=COLORS["wind"], width=0),
-        fillcolor="rgba(91,155,213,0.6)",
-    ), row=1, col=1)
-    fig_stack.add_trace(go.Scatter(
-        x=weekly_agg["week"], y=weekly_agg["solar"],
-        mode="lines", name="Solaire DE",
-        stackgroup="gen",
-        line=dict(color=COLORS["solar"], width=0),
-        fillcolor="rgba(255,209,102,0.7)",
-    ), row=1, col=1)
-    fig_stack.add_trace(go.Scatter(
-        x=weekly_agg["week"], y=weekly_agg["price_dk1"],
-        mode="lines", name="Prix DK-1",
-        line=dict(color=COLORS["price"], width=1.5),
-        fill="tozeroy",
-        fillcolor="rgba(253,127,111,0.10)",
-    ), row=2, col=1)
-    fig_stack.add_hline(y=0, line=dict(color="#e74c3c", width=1, dash="dash"), row=2, col=1)
+    st.markdown('<div class="section-title">Charge & Capacités Installées</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-sub">Évolution des capacités renouvelables et erreur de prévision de charge</div>', unsafe_allow_html=True)
 
-    fig_stack.update_layout(
-        **PLOTLY_LAYOUT,
-        title="Mix énergétique DE (moy. hebdomadaire) & Prix DK-1",
-        yaxis_title="MW",
-        yaxis2_title="€/MWh",
-        height=370,
-    )
-    st.plotly_chart(fig_stack, use_container_width=True)
-
-# Pénétration renouvelable
-st.markdown("**Taux de pénétration renouvelable (Allemagne) — médiane mensuelle**")
-monthly_pen = dff.groupby(["year", "month_num"])["DE_renewable_pct"].median().reset_index()
-monthly_pen["period"] = monthly_pen.apply(
-    lambda r: f"{int(r['year'])}-{int(r['month_num']):02d}", axis=1
-)
-
-fig_pen = go.Figure()
-fig_pen.add_trace(go.Bar(
-    x=monthly_pen["period"],
-    y=monthly_pen["DE_renewable_pct"],
-    marker_color=monthly_pen["DE_renewable_pct"].apply(
-        lambda v: "#2ecc71" if v > 30 else ("#f39c12" if v > 15 else "#e74c3c")
-    ),
-    name="Pénétration %",
-    hovertemplate="%{x}<br>Pénétration : %{y:.1f}%<extra></extra>",
-))
-fig_pen.add_hline(y=30, line=dict(color="#2ecc71", width=1, dash="dot"),
-                  annotation_text="Seuil 30%", annotation_font_color="#2ecc71")
-fig_pen.update_layout(
-    **PLOTLY_LAYOUT,
-    xaxis_title="Mois", yaxis_title="% (Gen Renouvelable / Charge)",
-    height=250, showlegend=False,
-)
-st.plotly_chart(fig_pen, use_container_width=True)
-
-# SECTION 4 — ANALYSE TEMPORELLE
-st.markdown('<div class="section-title">Patterns Temporels des Prix Négatifs</div>', unsafe_allow_html=True)
-st.markdown('<div class="section-sub">Quand les prix négatifs apparaissent-ils ? Heure, mois, année — pour anticiper et agir</div>', unsafe_allow_html=True)
-
-col_hm, col_year = st.columns([2, 1])
-
-with col_hm:
-    # Heatmap heure × mois : % prix négatifs
-    neg_flag = "DK_1_price_day_ahead" if "DK" in zone_sel else price_col
-    hm_data = dff.groupby(["hour", "month_num"]).apply(
-        lambda g: (g[neg_flag] < 0).mean() * 100
-    ).reset_index(name="neg_pct")
-
-    hm_pivot = hm_data.pivot(index="hour", columns="month_num", values="neg_pct")
-    month_labels = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun",
-                    "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"]
-    cols_present = [c for c in range(1, 13) if c in hm_pivot.columns]
-    hm_pivot = hm_pivot[cols_present]
-    col_labels = [month_labels[c - 1] for c in cols_present]
-
-    fig_hm = go.Figure(go.Heatmap(
-        z=hm_pivot.values,
-        x=col_labels,
-        y=list(hm_pivot.index),
-        colorscale=[
-            [0.0, "#0d2a1a"],
-            [0.01, "#2ecc71"],
-            [0.10, "#f39c12"],
-            [0.30, "#e74c3c"],
-            [1.0, "#7b0000"],
-        ],
-        colorbar=dict(title="% heures<br>négatives"),
-        hovertemplate="Heure %{y}h · %{x}<br>% négatif : %{z:.1f}%<extra></extra>",
-    ))
-    fig_hm.update_layout(
-        **PLOTLY_LAYOUT,
-        title="Heatmap : % heures à prix négatif par heure × mois",
-        xaxis_title="Mois",
-        yaxis_title="Heure du jour",
-        height=380,
-    )
-    st.plotly_chart(fig_hm, use_container_width=True)
-
-with col_year:
-    # Occurrences par année
-    yearly_neg = dff[dff[price_col] < 0].groupby("year").size().reset_index(name="neg_count")
-    yearly_total = dff.groupby("year").size().reset_index(name="total")
-    yearly = yearly_neg.merge(yearly_total, on="year", how="right").fillna(0)
-    yearly["neg_pct"] = yearly["neg_count"] / yearly["total"] * 100
-
-    fig_yr = go.Figure()
-    fig_yr.add_trace(go.Bar(
-        x=yearly["year"].astype(str),
-        y=yearly["neg_count"],
-        marker_color=[
-            "#e74c3c" if p > 3 else ("#f39c12" if p > 1 else "#2ecc71")
-            for p in yearly["neg_pct"]
-        ],
-        text=yearly["neg_pct"].apply(lambda v: f"{v:.1f}%"),
-        textposition="outside",
-        textfont=dict(color="#c9d1d9", size=11),
-        hovertemplate="Année %{x}<br>%{y:.0f} heures négatives<extra></extra>",
-    ))
-    fig_yr.update_layout(
-        **PLOTLY_LAYOUT,
-        title="Heures à prix négatif / an",
-        xaxis_title="Année",
-        yaxis_title="Nombre d'heures",
-        height=380,
-        showlegend=False,
-    )
-    st.plotly_chart(fig_yr, use_container_width=True)
-
-# Profil horaire moyen
-hourly_avg = dff.groupby("hour")[price_col].mean().reset_index()
-hourly_std = dff.groupby("hour")[price_col].std().reset_index(name="std")
-hourly_p = hourly_avg.merge(hourly_std, on="hour")
-hourly_p["upper"] = hourly_p[price_col] + hourly_p["std"]
-hourly_p["lower"] = hourly_p[price_col] - hourly_p["std"]
-
-fig_hourly = go.Figure()
-fig_hourly.add_trace(go.Scatter(
-    x=hourly_p["hour"], y=hourly_p["upper"],
-    mode="lines", line=dict(width=0), showlegend=False,
-    fillcolor="rgba(253,127,111,0.15)", fill=None,
-))
-fig_hourly.add_trace(go.Scatter(
-    x=hourly_p["hour"], y=hourly_p["lower"],
-    mode="lines", line=dict(width=0), showlegend=False,
-    fill="tonexty", fillcolor="rgba(253,127,111,0.15)",
-))
-fig_hourly.add_trace(go.Scatter(
-    x=hourly_p["hour"], y=hourly_p[price_col],
-    mode="lines+markers",
-    name="Prix moyen",
-    line=dict(color=COLORS["price"], width=2),
-    marker=dict(size=6),
-    hovertemplate="Heure %{x}h<br>Prix moy : %{y:.1f} €/MWh<extra></extra>",
-))
-fig_hourly.add_hline(y=0, line=dict(color="#e74c3c", width=1.5, dash="dash"))
-fig_hourly.update_layout(
-    **{**PLOTLY_LAYOUT, "xaxis": dict(tickmode="linear", dtick=2, **PLOTLY_LAYOUT["xaxis"])},
-    title="Profil horaire moyen du prix (± écart-type)",
-    xaxis_title="Heure de la journée",
-    yaxis_title="Prix (€/MWh)",
-    height=260,
-    showlegend=False,
-)
-st.plotly_chart(fig_hourly, use_container_width=True)
-
-# SECTION 5 — CHARGE & CAPACITÉS
-st.markdown('<div class="section-title">Charge & Capacités Installées</div>', unsafe_allow_html=True)
-st.markdown('<div class="section-sub">Demande réelle vs prévision · Évolution des capacités renouvelables</div>', unsafe_allow_html=True)
-
-col_load, col_cap = st.columns(2)
-
-with col_load:
-    # Load actual vs forecast DE
-    load_daily = dff.groupby("date")[
-        ["DE_load_actual_entsoe_transparency", "DE_load_forecast_entsoe_transparency",
-         "DK_load_actual_entsoe_transparency", "FR_load_actual_entsoe_transparency"]
-    ].mean().reset_index()
-    load_daily["date"] = pd.to_datetime(load_daily["date"])
-    load_monthly = load_daily.set_index("date").resample("ME").mean().reset_index()
-
-    fig_load = go.Figure()
-    fig_load.add_trace(go.Scatter(
-        x=load_monthly["date"],
-        y=load_monthly["DE_load_forecast_entsoe_transparency"] / 1000,
-        mode="lines", name="Prévision DE",
-        line=dict(color="#636e72", width=1.5, dash="dot"),
-    ))
-    fig_load.add_trace(go.Scatter(
-        x=load_monthly["date"],
-        y=load_monthly["DE_load_actual_entsoe_transparency"] / 1000,
-        mode="lines", name="Réel DE",
-        line=dict(color=COLORS["load"], width=2),
-    ))
-    fig_load.add_trace(go.Scatter(
-        x=load_monthly["date"],
-        y=load_monthly["DK_load_actual_entsoe_transparency"] / 1000,
-        mode="lines", name="Réel DK",
-        line=dict(color=COLORS["dk2"], width=1.5),
-    ))
-    fig_load.add_trace(go.Scatter(
-        x=load_monthly["date"],
-        y=load_monthly["FR_load_actual_entsoe_transparency"] / 1000,
-        mode="lines", name="Réel FR",
-        line=dict(color=COLORS["fr"], width=1.5),
-    ))
-    fig_load.update_layout(
-        **PLOTLY_LAYOUT,
-        title="Charge mensuelle (GW) — DE, DK, FR",
-        xaxis_title="Mois",
-        yaxis_title="Charge (GW)",
-        height=340,
-    )
-    st.plotly_chart(fig_load, use_container_width=True)
-
-with col_cap:
-    # Évolution capacités installées DE
+    # Capacités installées Allemagne (fig_cap)
     cap_data = dff.groupby("year")[
         ["DE_solar_capacity", "DE_wind_onshore_capacity", "DE_wind_offshore_capacity"]
     ].max().reset_index()
@@ -666,66 +565,162 @@ with col_cap:
     fig_cap.add_trace(go.Bar(
         x=cap_data["year"].astype(str),
         y=cap_data["DE_solar_capacity"] / 1000,
-        name="Solaire",
-        marker_color=COLORS["solar"],
+        name="Solaire", marker_color=COLORS["solar"],
     ))
     fig_cap.add_trace(go.Bar(
         x=cap_data["year"].astype(str),
         y=cap_data["DE_wind_onshore_capacity"] / 1000,
-        name="Éolien onshore",
-        marker_color=COLORS["wind"],
+        name="Éolien onshore", marker_color=COLORS["wind"],
     ))
     fig_cap.add_trace(go.Bar(
         x=cap_data["year"].astype(str),
         y=cap_data["DE_wind_offshore_capacity"] / 1000,
-        name="Éolien offshore",
-        marker_color="#2c7eb3",
+        name="Éolien offshore", marker_color="#2c7eb3",
     ))
     fig_cap.update_layout(
         **PLOTLY_LAYOUT,
         title="Capacités installées Allemagne (GW)",
         barmode="stack",
-        xaxis_title="Année",
-        yaxis_title="Capacité (GW)",
-        height=340,
+        xaxis_title="Année", yaxis_title="Capacité (GW)",
+        height=380,
     )
     st.plotly_chart(fig_cap, use_container_width=True)
 
-# SECTION 6 — ERREUR DE PRÉVISION
-st.markdown('<div class="section-title">Erreur de Prévision de Charge</div>', unsafe_allow_html=True)
-st.markdown('<div class="section-sub">Écart (MW) entre charge réelle et prévue — un fort écart positif = déséquilibre réseau</div>', unsafe_allow_html=True)
+    # Erreur de prévision de charge DE (fig_err)
+    st.markdown('<div class="section-title">Erreur de Prévision de Charge</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-sub">Écart (MW) entre charge réelle et prévue — un fort écart positif = déséquilibre réseau</div>', unsafe_allow_html=True)
 
-dff["DE_load_error"] = dff["DE_load_actual_entsoe_transparency"] - dff["DE_load_forecast_entsoe_transparency"]
+    dff["DE_load_error"] = dff["DE_load_actual_entsoe_transparency"] - dff["DE_load_forecast_entsoe_transparency"]
+    error_monthly = dff.groupby(["year", "month_num"])["DE_load_error"].agg(["mean", "std"]).reset_index()
+    error_monthly["period"] = error_monthly.apply(
+        lambda r: f"{int(r['year'])}-{int(r['month_num']):02d}", axis=1
+    )
 
-error_monthly = dff.groupby(["year", "month_num"])["DE_load_error"].agg(["mean", "std"]).reset_index()
-error_monthly["period"] = error_monthly.apply(
-    lambda r: f"{int(r['year'])}-{int(r['month_num']):02d}", axis=1
-)
+    fig_err = go.Figure()
+    fig_err.add_trace(go.Bar(
+        x=error_monthly["period"], y=error_monthly["mean"],
+        error_y=dict(type="data", array=error_monthly["std"], visible=True, color="#636e72"),
+        marker_color=error_monthly["mean"].apply(
+            lambda v: "#e74c3c" if abs(v) > 500 else ("#f39c12" if abs(v) > 200 else "#2ecc71")
+        ),
+        hovertemplate="%{x}<br>Erreur moy : %{y:.0f} MW<extra></extra>",
+    ))
+    fig_err.add_hline(y=0, line=dict(color="#636e72", width=1))
+    fig_err.add_hline(y=500, line=dict(color="#f39c12", width=1, dash="dot"),
+                      annotation_text="Seuil +500 MW", annotation_font_color="#f39c12")
+    fig_err.add_hline(y=-500, line=dict(color="#f39c12", width=1, dash="dot"),
+                      annotation_text="Seuil -500 MW", annotation_font_color="#f39c12")
+    fig_err.update_layout(
+        **PLOTLY_LAYOUT,
+        title="Erreur de prévision de charge DE (Réel − Prévision)",
+        xaxis_title="Mois", yaxis_title="Erreur (MW)",
+        height=270, showlegend=False,
+    )
+    st.plotly_chart(fig_err, use_container_width=True)
 
-fig_err = go.Figure()
-fig_err.add_trace(go.Bar(
-    x=error_monthly["period"],
-    y=error_monthly["mean"],
-    error_y=dict(type="data", array=error_monthly["std"], visible=True, color="#636e72"),
-    marker_color=error_monthly["mean"].apply(
-        lambda v: "#e74c3c" if abs(v) > 500 else ("#f39c12" if abs(v) > 200 else "#2ecc71")
-    ),
-    hovertemplate="%{x}<br>Erreur moy : %{y:.0f} MW<extra></extra>",
-))
-fig_err.add_hline(y=0, line=dict(color="#636e72", width=1))
-fig_err.add_hline(y=500, line=dict(color="#f39c12", width=1, dash="dot"),
-                  annotation_text="Seuil +500 MW", annotation_font_color="#f39c12")
-fig_err.add_hline(y=-500, line=dict(color="#f39c12", width=1, dash="dot"),
-                  annotation_text="Seuil -500 MW", annotation_font_color="#f39c12")
-fig_err.update_layout(
-    **PLOTLY_LAYOUT,
-    title="Erreur de prévision de charge DE (Réel − Prévision)",
-    xaxis_title="Mois",
-    yaxis_title="Erreur (MW)",
-    height=270,
-    showlegend=False,
-)
-st.plotly_chart(fig_err, use_container_width=True)
+# ONGLET 5 — MODÈLE PRÉDICTIF (PLACEHOLDER)
+with tab_ml:
+
+    st.markdown('<div class="section-title">Modèle prédictif des prix négatifs</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-sub">Intégration du modèle de classification de l\'étudiant 4 — prédiction H+24 de l\'occurrence d\'un prix négatif</div>', unsafe_allow_html=True)
+
+    # Bandeau de statut intégration
+    st.markdown(
+        '<div class="alert-yellow alert-text"><strong>EN ATTENTE :</strong> '
+        'Cet onglet est prêt à recevoir les sorties du modèle prédictif (étudiant 4 — Modélisation prédictive). '
+        'Les emplacements ci-dessous sont conçus pour accueillir : prédictions horaires, métriques de performance, '
+        'feature importance et matrice de confusion. Les visualisations seront automatiquement reliées aux filtres globaux.</div>',
+        unsafe_allow_html=True
+    )
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # --- KPIs modèle (placeholders) ---
+    st.markdown("**Métriques de performance du modèle**")
+    mc1, mc2, mc3, mc4 = st.columns(4)
+    with mc1:
+        st.markdown(kpi_card("Accuracy", "—", "À renseigner par l'étudiant 4", "yellow"), unsafe_allow_html=True)
+    with mc2:
+        st.markdown(kpi_card("Precision (classe positive)", "—", "Prix négatif détecté", "yellow"), unsafe_allow_html=True)
+    with mc3:
+        st.markdown(kpi_card("Recall (classe positive)", "—", "Prix négatifs capturés", "yellow"), unsafe_allow_html=True)
+    with mc4:
+        st.markdown(kpi_card("F1-score", "—", "Compromis P/R", "yellow"), unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # --- Zone 1 : Prédictions horaires + courbe de probabilité ---
+    col_pred, col_roc = st.columns([2, 1])
+
+    with col_pred:
+        st.markdown(
+            '<div class="ml-placeholder">'
+            '<h4>Probabilité prédite de prix négatif (H+24)</h4>'
+            '<p style="font-size:13px;">Série temporelle attendue : <code>timestamp</code> × <code>p_negatif</code><br>'
+            'Avec seuil de décision (ex. 0.5) en pointillé et points colorés selon le résultat réel.<br>'
+            'Source attendue : <code>predictions.csv</code> de l\'étudiant 4.</p>'
+            '</div>',
+            unsafe_allow_html=True
+        )
+        # Code prêt à brancher (commenté) :
+        # preds = pd.read_csv("data/processed/predictions.csv", parse_dates=["timestamp"])
+        # fig_pred = go.Figure()
+        # fig_pred.add_trace(go.Scatter(x=preds["timestamp"], y=preds["p_negatif"], ...))
+        # fig_pred.add_hline(y=0.5, line=dict(dash="dash"))
+        # st.plotly_chart(fig_pred, use_container_width=True)
+
+    with col_roc:
+        st.markdown(
+            '<div class="ml-placeholder">'
+            '<h4>Courbe ROC / Precision-Recall</h4>'
+            '<p style="font-size:13px;">Courbe de performance du classifieur avec AUC affichée.<br>'
+            'Source attendue : <code>roc_curve.csv</code> ou directement les scores de probabilité.</p>'
+            '</div>',
+            unsafe_allow_html=True
+        )
+
+    # --- Zone 2 : Feature importance + matrice de confusion ---
+    col_fi, col_cm = st.columns(2)
+
+    with col_fi:
+        st.markdown(
+            '<div class="ml-placeholder">'
+            '<h4>Feature importance</h4>'
+            '<p style="font-size:13px;">Bar chart horizontal — top 10 features les plus prédictives.<br>'
+            'Permettra de valider que les features de l\'étudiant 3 sont bien exploitées.<br>'
+            'Source attendue : <code>feature_importance.csv</code>.</p>'
+            '</div>',
+            unsafe_allow_html=True
+        )
+
+    with col_cm:
+        st.markdown(
+            '<div class="ml-placeholder">'
+            '<h4>Matrice de confusion</h4>'
+            '<p style="font-size:13px;">Heatmap 2×2 (classe réelle × classe prédite) avec annotations.<br>'
+            'Identifie les faux positifs / faux négatifs sur le test set.<br>'
+            'Source attendue : valeurs <code>tn, fp, fn, tp</code>.</p>'
+            '</div>',
+            unsafe_allow_html=True
+        )
+
+    # --- Zone 3 : Robustesse (étudiant 5) ---
+    st.markdown('<div class="section-title">Validation & Robustesse</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-sub">Sorties attendues de l\'étudiant 5 — validation croisée temporelle, sensibilité aux features</div>', unsafe_allow_html=True)
+
+    st.markdown(
+        '<div class="ml-placeholder">'
+        '<h4>Performance par fold temporel</h4>'
+        '<p style="font-size:13px;">Bar chart : F1-score par fold de validation croisée temporelle (TimeSeriesSplit).<br>'
+        'Permet de vérifier la stabilité du modèle dans le temps.</p>'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    st.caption(
+        "**Note d'intégration** : dès que les fichiers `predictions.csv`, `feature_importance.csv` "
+        "et les métriques sont disponibles, ils seront chargés via `pd.read_csv()` et les `<div class=\"ml-placeholder\">` "
+        "seront remplacés par des `st.plotly_chart()`. La structure d'onglets et les filtres globaux resteront identiques."
+    )
 
 # FOOTER
 st.divider()
