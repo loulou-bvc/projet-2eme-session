@@ -618,109 +618,236 @@ with tab_capacity:
     )
     st.plotly_chart(fig_err, use_container_width=True)
 
-# ONGLET 5 — MODÈLE PRÉDICTIF (PLACEHOLDER)
+# ONGLET 5 — MODÈLE PRÉDICTIF
 with tab_ml:
 
-    st.markdown('<div class="section-title">Modèle prédictif des prix négatifs</div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-sub">Intégration du modèle de classification de l\'étudiant 4 — prédiction H+24 de l\'occurrence d\'un prix négatif</div>', unsafe_allow_html=True)
+    import json as _json
 
-    # Bandeau de statut intégration
+    ROLE4_PATH = os.path.join(os.path.dirname(__file__), "role4")
+
+    @st.cache_data(show_spinner="Chargement des données ML…")
+    def load_ml_data():
+        with open(os.path.join(ROLE4_PATH, "reports", "run_summary.json"), encoding="utf-8") as f:
+            summary = _json.load(f)
+        perf = pd.read_csv(os.path.join(ROLE4_PATH, "reports", "model_performance.csv"))
+        feat = pd.read_csv(os.path.join(ROLE4_PATH, "reports", "permutation_importance_best_model.csv"))
+        horizon = pd.read_csv(os.path.join(ROLE4_PATH, "reports", "horizon_comparison.csv"))
+        return summary, perf, feat, horizon
+
+    run_summary, perf_df, feat_df, horizon_df = load_ml_data()
+    bm = run_summary["best_metrics"]
+
+    st.markdown('<div class="section-title">Modèle prédictif des prix négatifs</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="alert-yellow alert-text"><strong>EN ATTENTE :</strong> '
-        'Cet onglet est prêt à recevoir les sorties du modèle prédictif (étudiant 4 — Modélisation prédictive). '
-        'Les emplacements ci-dessous sont conçus pour accueillir : prédictions horaires, métriques de performance, '
-        'feature importance et matrice de confusion. Les visualisations seront automatiquement reliées aux filtres globaux.</div>',
-        unsafe_allow_html=True
+        '<div class="section-sub">Random Forest — classification binaire (prix négatif oui/non) · '
+        'Horizon H+1 · Entraîné sur 2015–2019 · Testé sur 2019–2020</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        '<div class="alert-green alert-text"><strong>MODÈLE INTÉGRÉ :</strong> '
+        'Random Forest (meilleur modèle sélectionné sur F1 pondéré) — '
+        f'ROC-AUC = {bm["roc_auc"]:.3f} · F1 = {bm["f1"]:.3f} · Seuil optimal = {bm["threshold"]:.3f}. '
+        'Données : Open Power System Data (OPSD) 2015–2020, zone DK-1.</div>',
+        unsafe_allow_html=True,
     )
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- KPIs modèle (placeholders) ---
-    st.markdown("**Métriques de performance du modèle**")
+    # KPIs
+    st.markdown("**Métriques de performance du meilleur modèle (test set)**")
     mc1, mc2, mc3, mc4 = st.columns(4)
     with mc1:
-        st.markdown(kpi_card("Accuracy", "—", "À renseigner par l'étudiant 4", "yellow"), unsafe_allow_html=True)
+        st.markdown(kpi_card(
+            "Balanced Accuracy",
+            f"{bm['balanced_accuracy']:.1%}",
+            "Moyenne sensibilité/spécificité", "green"
+        ), unsafe_allow_html=True)
     with mc2:
-        st.markdown(kpi_card("Precision (classe positive)", "—", "Prix négatif détecté", "yellow"), unsafe_allow_html=True)
+        st.markdown(kpi_card(
+            "Precision",
+            f"{bm['precision']:.1%}",
+            "% vrais positifs parmi détectés", "green"
+        ), unsafe_allow_html=True)
     with mc3:
-        st.markdown(kpi_card("Recall (classe positive)", "—", "Prix négatifs capturés", "yellow"), unsafe_allow_html=True)
+        st.markdown(kpi_card(
+            "Recall",
+            f"{bm['recall']:.1%}",
+            "% prix négatifs capturés", "yellow"
+        ), unsafe_allow_html=True)
     with mc4:
-        st.markdown(kpi_card("F1-score", "—", "Compromis P/R", "yellow"), unsafe_allow_html=True)
+        st.markdown(kpi_card(
+            "F1-score",
+            f"{bm['f1']:.1%}",
+            f"ROC-AUC = {bm['roc_auc']:.3f}", "green"
+        ), unsafe_allow_html=True)
 
+    st.caption("Modèle : Random Forest · Zone DK-1 · Horizon H+1 · Test set Nov 2019 – Sep 2020")
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- Zone 1 : Prédictions horaires + courbe de probabilité ---
-    col_pred, col_roc = st.columns([2, 1])
+    # Comparaison des modèles
+    st.markdown('<div class="section-title">Comparaison des modèles (H+1)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-sub">Tous les modèles évalués sur le même test set · ★ = modèle retenu</div>', unsafe_allow_html=True)
 
-    with col_pred:
-        st.markdown(
-            '<div class="ml-placeholder">'
-            '<h4>Probabilité prédite de prix négatif (H+24)</h4>'
-            '<p style="font-size:13px;">Série temporelle attendue : <code>timestamp</code> × <code>p_negatif</code><br>'
-            'Avec seuil de décision (ex. 0.5) en pointillé et points colorés selon le résultat réel.<br>'
-            'Source attendue : <code>predictions.csv</code> de l\'étudiant 4.</p>'
-            '</div>',
-            unsafe_allow_html=True
-        )
-        # Code prêt à brancher (commenté) :
-        # preds = pd.read_csv("data/processed/predictions.csv", parse_dates=["timestamp"])
-        # fig_pred = go.Figure()
-        # fig_pred.add_trace(go.Scatter(x=preds["timestamp"], y=preds["p_negatif"], ...))
-        # fig_pred.add_hline(y=0.5, line=dict(dash="dash"))
-        # st.plotly_chart(fig_pred, use_container_width=True)
+    perf_plot = perf_df[perf_df["model"] != "dummy_most_frequent"].copy()
+    model_labels = {
+        "random_forest": "Random Forest ★",
+        "logistic_regression": "Logistic Regression",
+        "hist_gradient_boosting": "Hist GradientBoosting",
+    }
+    perf_plot["label"] = perf_plot["model"].map(model_labels).fillna(perf_plot["model"])
+    metrics_to_show = ["f1", "precision", "recall", "roc_auc"]
+    metric_names    = ["F1-score", "Precision", "Recall", "ROC-AUC"]
+    colors_bar = ["#58a6ff", "#ffd166", "#2ecc71"]
 
-    with col_roc:
-        st.markdown(
-            '<div class="ml-placeholder">'
-            '<h4>Courbe ROC / Precision-Recall</h4>'
-            '<p style="font-size:13px;">Courbe de performance du classifieur avec AUC affichée.<br>'
-            'Source attendue : <code>roc_curve.csv</code> ou directement les scores de probabilité.</p>'
-            '</div>',
-            unsafe_allow_html=True
-        )
+    fig_cmp = go.Figure()
+    for i, row in perf_plot.iterrows():
+        fig_cmp.add_trace(go.Bar(
+            name=row["label"],
+            x=metric_names,
+            y=[row[m] for m in metrics_to_show],
+            marker_color=colors_bar[list(perf_plot.index).index(i) % len(colors_bar)],
+            text=[f"{row[m]:.3f}" for m in metrics_to_show],
+            textposition="outside",
+            textfont=dict(size=11),
+        ))
+    fig_cmp.update_layout(
+        **{**PLOTLY_LAYOUT, "yaxis": dict(range=[0, 1.05], gridcolor="#21262d", zerolinecolor="#30363d")},
+        barmode="group",
+        title="Comparaison des modèles sur le test set",
+        height=340,
+    )
+    st.plotly_chart(fig_cmp, use_container_width=True)
+    st.caption("Tous les modèles · même test set · seuil optimisé par Precision-Recall · zone DK-1 · H+1")
 
-    # --- Zone 2 : Feature importance + matrice de confusion ---
+    # Feature importance + Confusion matrix
     col_fi, col_cm = st.columns(2)
 
     with col_fi:
-        st.markdown(
-            '<div class="ml-placeholder">'
-            '<h4>Feature importance</h4>'
-            '<p style="font-size:13px;">Bar chart horizontal — top 10 features les plus prédictives.<br>'
-            'Permettra de valider que les features de l\'étudiant 3 sont bien exploitées.<br>'
-            'Source attendue : <code>feature_importance.csv</code>.</p>'
-            '</div>',
-            unsafe_allow_html=True
+        st.markdown('<div class="section-title" style="font-size:15px;">Feature Importance (permutation)</div>', unsafe_allow_html=True)
+        top_feat = feat_df[feat_df["importance_mean"] > 0].nlargest(15, "importance_mean")
+        fig_fi = go.Figure()
+        fig_fi.add_trace(go.Bar(
+            x=top_feat["importance_mean"],
+            y=top_feat["feature"],
+            orientation="h",
+            marker=dict(
+                color=top_feat["importance_mean"],
+                colorscale=[[0, "#30363d"], [0.3, "#58a6ff"], [1, "#2ecc71"]],
+                showscale=False,
+            ),
+            error_x=dict(type="data", array=top_feat["importance_std"], visible=True, color="#636e72"),
+            hovertemplate="%{y}<br>Importance : %{x:.4f}<extra></extra>",
+        ))
+        fig_fi.update_layout(
+            **{**PLOTLY_LAYOUT, "yaxis": dict(autorange="reversed", gridcolor="#21262d", zerolinecolor="#30363d")},
+            title="Random Forest — Top 15 features (permutation importance)",
+            xaxis_title="Importance moyenne",
+            height=430,
         )
+        st.plotly_chart(fig_fi, use_container_width=True)
+        st.caption("Modèle : Random Forest (meilleur modèle) · H+1 · test set · moyenne sur 5 répétitions de permutation")
 
     with col_cm:
-        st.markdown(
-            '<div class="ml-placeholder">'
-            '<h4>Matrice de confusion</h4>'
-            '<p style="font-size:13px;">Heatmap 2×2 (classe réelle × classe prédite) avec annotations.<br>'
-            'Identifie les faux positifs / faux négatifs sur le test set.<br>'
-            'Source attendue : valeurs <code>tn, fp, fn, tp</code>.</p>'
-            '</div>',
-            unsafe_allow_html=True
+        st.markdown('<div class="section-title" style="font-size:15px;">Matrice de confusion & Courbes P-R</div>', unsafe_allow_html=True)
+        cm_path = os.path.join(ROLE4_PATH, "figures", "confusion_matrix_best_model.png")
+        pr_path = os.path.join(ROLE4_PATH, "figures", "precision_recall_curves.png")
+        if os.path.exists(cm_path):
+            st.image(cm_path, caption="Matrice de confusion — Random Forest (test set)", use_container_width=True)
+        if os.path.exists(pr_path):
+            st.image(pr_path, caption="Courbes Precision-Recall par modèle", use_container_width=True)
+
+    # Comparaison par horizon
+    st.markdown('<div class="section-title">Performance par horizon de prédiction</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-sub">La performance se dégrade naturellement à mesure que l\'horizon augmente (H+1 → H+12)</div>', unsafe_allow_html=True)
+
+    fig_hz = go.Figure()
+    fig_hz.add_trace(go.Scatter(
+        x=horizon_df["horizon_h"], y=horizon_df["roc_auc"],
+        mode="lines+markers+text",
+        name="ROC-AUC",
+        line=dict(color="#58a6ff", width=2),
+        marker=dict(size=9),
+        text=[f"{v:.3f}" for v in horizon_df["roc_auc"]],
+        textposition="top center",
+        hovertemplate="H+%{x}h<br>ROC-AUC : %{y:.3f}<extra></extra>",
+    ))
+    fig_hz.add_trace(go.Scatter(
+        x=horizon_df["horizon_h"], y=horizon_df["f1"],
+        mode="lines+markers+text",
+        name="F1-score",
+        line=dict(color="#2ecc71", width=2),
+        marker=dict(size=9),
+        text=[f"{v:.3f}" for v in horizon_df["f1"]],
+        textposition="bottom center",
+        hovertemplate="H+%{x}h<br>F1 : %{y:.3f}<extra></extra>",
+    ))
+    fig_hz.add_trace(go.Scatter(
+        x=horizon_df["horizon_h"], y=horizon_df["average_precision"],
+        mode="lines+markers+text",
+        name="Average Precision",
+        line=dict(color="#ffd166", width=2, dash="dot"),
+        marker=dict(size=9),
+        text=[f"{v:.3f}" for v in horizon_df["average_precision"]],
+        textposition="top center",
+        hovertemplate="H+%{x}h<br>Avg Precision : %{y:.3f}<extra></extra>",
+    ))
+    _hz_model_short = {
+        "random_forest": "RF",
+        "logistic_regression": "LR",
+        "hist_gradient_boosting": "HGB",
+    }
+    hz_annotations = [
+        dict(
+            x=row["horizon_h"], y=row["roc_auc"] + 0.07,
+            text=f"<b>{_hz_model_short.get(row['best_model'], row['best_model'])}</b>",
+            showarrow=False,
+            font=dict(size=11, color="#8892a4"),
+            bgcolor="#1a1d2e", bordercolor="#30363d", borderwidth=1,
+            borderpad=3,
         )
-
-    # --- Zone 3 : Robustesse (étudiant 5) ---
-    st.markdown('<div class="section-title">Validation & Robustesse</div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-sub">Sorties attendues de l\'étudiant 5 — validation croisée temporelle, sensibilité aux features</div>', unsafe_allow_html=True)
-
-    st.markdown(
-        '<div class="ml-placeholder">'
-        '<h4>Performance par fold temporel</h4>'
-        '<p style="font-size:13px;">Bar chart : F1-score par fold de validation croisée temporelle (TimeSeriesSplit).<br>'
-        'Permet de vérifier la stabilité du modèle dans le temps.</p>'
-        '</div>',
-        unsafe_allow_html=True
+        for _, row in horizon_df.iterrows()
+    ]
+    fig_hz.update_layout(
+        **{
+            **PLOTLY_LAYOUT,
+            "xaxis": dict(
+                tickmode="array", tickvals=horizon_df["horizon_h"].tolist(),
+                ticktext=[f"H+{h}h" for h in horizon_df["horizon_h"]],
+                gridcolor="#21262d", zerolinecolor="#30363d",
+            ),
+            "yaxis": dict(range=[0, 1.12], title="Score", gridcolor="#21262d", zerolinecolor="#30363d"),
+        },
+        title="Dégradation de la performance selon l'horizon — modèle retenu par horizon",
+        annotations=hz_annotations,
+        height=340,
     )
+    st.plotly_chart(fig_hz, use_container_width=True)
+    st.caption("RF = Random Forest · HGB = HistGradientBoosting · LR = Logistic Regression · étiquettes = meilleur modèle à chaque horizon · zone DK-1")
 
-    st.caption(
-        "**Note d'intégration** : dès que les fichiers `predictions.csv`, `feature_importance.csv` "
-        "et les métriques sont disponibles, ils seront chargés via `pd.read_csv()` et les `<div class=\"ml-placeholder\">` "
-        "seront remplacés par des `st.plotly_chart()`. La structure d'onglets et les filtres globaux resteront identiques."
-    )
+    # Périodes d'entraînement
+    st.markdown('<div class="section-title">Découpage temporel (train / validation / test)</div>', unsafe_allow_html=True)
+    col_info1, col_info2, col_info3 = st.columns(3)
+    with col_info1:
+        st.markdown(kpi_card(
+            "Entraînement",
+            "2015 → Jan 2019",
+            run_summary["train_period"][0][:10] + " – " + run_summary["train_period"][1][:10],
+            "green"
+        ), unsafe_allow_html=True)
+    with col_info2:
+        st.markdown(kpi_card(
+            "Validation",
+            "Jan → Nov 2019",
+            run_summary["validation_period"][0][:10] + " – " + run_summary["validation_period"][1][:10],
+            "yellow"
+        ), unsafe_allow_html=True)
+    with col_info3:
+        st.markdown(kpi_card(
+            "Test",
+            "Nov 2019 → Sep 2020",
+            run_summary["test_period"][0][:10] + " – " + run_summary["test_period"][1][:10],
+            "red"
+        ), unsafe_allow_html=True)
 
 # FOOTER
 st.divider()
