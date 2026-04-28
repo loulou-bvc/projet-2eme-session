@@ -1,0 +1,32 @@
+{
+  "best_model": "random_forest",
+  "best_metrics": {
+    "average_precision": 0.6700101032151524,
+    "roc_auc": 0.9740986677055943,
+    "f1": 0.6666666666666666,
+    "precision": 0.7202797202797203,
+    "recall": 0.6204819277108434,
+    "balanced_accuracy": 0.8075349700792074,
+    "threshold": 0.357729922418254
+  },
+  "prediction_horizon_hours": 1,
+  "evaluated_horizons": [
+    1,
+    3,
+    6,
+    12
+  ],
+  "docx_report": "/home/adrie/projects/Stage-Projet-session-hiver-UQAC/Role 4/rapport_performance_role4.docx",
+  "train_period": [
+    "2015-01-01 23:00:00+00:00",
+    "2019-01-10 05:00:00+00:00"
+  ],
+  "validation_period": [
+    "2019-01-10 06:00:00+00:00",
+    "2019-11-21 01:00:00+00:00"
+  ],
+  "test_period": [
+    "2019-11-21 02:00:00+00:00",
+    "2020-09-30 22:00:00+00:00"
+  ]
+}
